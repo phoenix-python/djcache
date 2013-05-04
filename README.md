@@ -24,9 +24,10 @@ And that's it. From now all sql queries will be cached
 You can customize behaviour of djcache by adding DJCACHE_OPTIONS to your settings
 
 Here is an example
-    DJCACHE_OPTIONS = {
-        'DISABLE_CACHE': False, # you can disable caching by setting this parametr to True
-        'TABLES': ['game', 'tag', 'comment'], # list of tables that you want to invalidate properly
-        'TTL': 24 * 60 * 60 # time to live of cached request
-        'REDIS_SETTINGS': {'db': 0}, # redis connection settings
-    }
+    
+        DJCACHE_OPTIONS = {
+            'DISABLE_CACHE': False, # you can disable caching by setting this parametr to True
+            'TABLES': ['game', 'tag', 'comment'], # list of tables that you want to invalidate properly
+            'TTL': 24 * 60 * 60 # time to live of cached request
+            'REDIS_SETTINGS': {'db': 0}, # redis connection settings
+        }
