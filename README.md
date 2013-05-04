@@ -1,6 +1,6 @@
-# django-celery-transactions
+# djcache
 
-djcelery adds auto caching to your django application. It's implicit(so You 
+djcache adds auto caching to your django application. It's implicit(so You 
 don't need to rewrite code to use it) and easy to install.
 Currently supports only mysql as database and redis as cache engine
 
