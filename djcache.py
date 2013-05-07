@@ -5,7 +5,7 @@ import hashlib
 import redis
 import MySQLdb
 from django.conf import settings
-from django.db import connection
+from django.db import connection, models
 from django.db.models.sql.compiler import SQLCompiler
 
 
@@ -22,7 +22,7 @@ def cached_sql_execution(self, state):
     sql = self.as_sql()
     sql = sql[0] % sql[1]
 
-    if sql[:6] != 'SELECT' or DJCACHE_OPTIONS.get('DISABLE_CACHE'):
+    if not sql.startswith('SELECT') or DJCACHE_OPTIONS.get('DISABLE_CACHE'):
         return NATIVE_SQL(self, state)
 
     db_name = settings.DATABASES[self.using]['NAME']
@@ -48,26 +48,38 @@ def cached_sql_execution(self, state):
     return iter(data)
 
 
-def create_invalidation_triggers(table):
+def create_invalidation_triggers():
     """
     Creates invalidation triggers for given table
     """
+    def _safe_call(cursor, sql):
+        try:
+            cursor.execute(sql)
+        except MySQLdb.Warning:
+            pass
+
+    if 'APP_LABELS' in DJCACHE_OPTIONS:
+        tables = [
+            x._meta.db_table 
+            for x in models.get_models() 
+            if x._meta.app_label in DJCACHE_OPTIONS['APP_LABELS']]
+    else:
+        tables = DJCACHE_OPTIONS.get('TABLES', [])
+
     trigger = """
-        create trigger if not exist
-        invalidation_%(table)s_%(action)s %(event)s
+        create trigger invalidation_%(table)s_%(action)s %(event)s 
         on %(table)s for each row 
         select if(@enable_cache=FALSE, 0, sys_exec(concat(
         'redis-cli smembers active_queries | grep :%(table)s: | grep ^', DATABASE(), ' | xargs redis-cli del')))
         into @val;"""
     events = ['before insert', 'after update', 'after delete']
     cursor = connection.cursor()
-    for event in events:
-        try:
-            cursor.execute(trigger % dict(
-                table=table, action='_'.join(event.split()), event=event))
-        except MySQLdb.Warning:
-            pass
-    connection.commit()
+    for table in tables:
+        for event in events:
+            context = dict(table=table, action=event.split()[1], event=event)
+            context['name'] = 'invalidation_%(table)s_%(action)s' % context
+            _safe_call(cursor, "drop trigger if exists %(name)s;" % context)
+            _safe_call(cursor, trigger % context)
     cursor.close()
 
 
@@ -75,6 +87,4 @@ def patch():
     """
     Adds caching to django's sql compiler and creates invalidation triggers
     """
-    for model in DJCACHE_OPTIONS.get('TABLES', []):
-        create_invalidation_triggers(model)
     SQLCompiler.execute_sql = cached_sql_execution
