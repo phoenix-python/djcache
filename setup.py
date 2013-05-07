@@ -1,7 +1,7 @@
 import os
 import sys
 from distutils.core import setup
-from distutils.command.install import install as DistutilsInstall
+from setuptools.command.install import install as DistutilsInstall
 
 
 class MakeInstall(DistutilsInstall):
