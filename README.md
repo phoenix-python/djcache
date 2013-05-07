@@ -6,13 +6,7 @@ Currently supports only mysql as database and redis as cache engine
 
 ## Installation & Use
 
-1.  Clone repository
-
-2.  Go to folder with code and run
-    
-        make
-
-3.  Run next lines when worker starts(for example, add them to urls.py)
+Run next lines when worker starts(for example, add them to urls.py)
 
         import djcache
         djcache.patch()
@@ -27,7 +21,7 @@ Here is an example
     
         DJCACHE_OPTIONS = {
             'DISABLE_CACHE': False, # you can disable caching by setting this parametr to True
-            'TABLES': ['game', 'tag', 'comment'], # list of tables that you want to invalidate properly
+            'APP_LABELS': ['games', 'blog'], # list of application labels that you want to invalidate properly
             'TTL': 24 * 60 * 60 # time to live of cached request
             'REDIS_SETTINGS': {'db': 0}, # redis connection settings
         }

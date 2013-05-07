@@ -22,7 +22,7 @@ def cached_sql_execution(self, state):
     sql = self.as_sql()
     sql = sql[0] % sql[1]
 
-    if not sql.startswith('SELECT') or DJCACHE_OPTIONS.get('DISABLE_CACHE'):
+    if not sql.startswith('SELECT'):
         return NATIVE_SQL(self, state)
 
     db_name = settings.DATABASES[self.using]['NAME']
@@ -52,6 +52,9 @@ def create_invalidation_triggers():
     """
     Creates invalidation triggers for given table
     """
+    if DJCACHE_OPTIONS.get('DISABLE_CACHE'):
+        return
+
     def _safe_call(cursor, sql):
         try:
             cursor.execute(sql)
@@ -87,4 +90,5 @@ def patch():
     """
     Adds caching to django's sql compiler and creates invalidation triggers
     """
-    SQLCompiler.execute_sql = cached_sql_execution
+    if not DJCACHE_OPTIONS.get('DISABLE_CACHE'):
+        SQLCompiler.execute_sql = cached_sql_execution
