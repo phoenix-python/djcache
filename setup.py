@@ -11,7 +11,7 @@ class MakeInstall(DistutilsInstall):
 
     def run(self):
         try:
-            json.loads(open(self.PASSWORD_FILE).read())['password']
+            password = json.loads(open(self.PASSWORD_FILE).read())['password']
         except IOError, KeyError:
             password = None
 
