@@ -1,12 +1,20 @@
 import os
 import sys
+import json
+
 from distutils.core import setup
 from setuptools.command.install import install as DistutilsInstall
 
 
 class MakeInstall(DistutilsInstall):
+    PASSWORD_FILE = '/tmp/mysql.json'
+
     def run(self):
-        password = os.environ.get('MYSQL_PASSWORD')
+        try:
+            json.loads(open(self.PASSWORD_FILE).read())['password']
+        except IOError, KeyError:
+            password = None
+
         password = '-p' if password is None else '--password="%s"' % password 
         cmds = [
             'sudo apt-get install gcc make libmysqlclient-dev',
