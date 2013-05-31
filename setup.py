@@ -24,9 +24,9 @@ class MakeInstall(DistutilsInstall):
         else:
             cmds = [
                 'sudo apt-get install gcc make libmysqlclient-dev',
-                'sudo gcc -fpic -Wall -I/usr/include/mysql -I. -shared lib_mysqludf_sys.c -o /usr/lib/mysql/plugin/lib_mysqludf_sys.so',
+                'sudo gcc -fpic -Wall -I/usr/include/mysql -shared udf.c -o /usr/lib/mysql/plugin/udf.so',
                 'mysql -u root %s -e "DROP FUNCTION IF EXISTS sys_exec"' % password,
-                """mysql -u root %s -e "CREATE FUNCTION sys_exec RETURNS int SONAME 'lib_mysqludf_sys.so'" """ % password,
+                """mysql -u root %s -e "CREATE FUNCTION sys_exec RETURNS int SONAME 'udf.so'" """ % password,
             ]
             for cmd in cmds:
                 os.system(cmd)
