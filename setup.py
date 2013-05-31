@@ -7,32 +7,22 @@ from setuptools.command.install import install as DistutilsInstall
 
 
 class MakeInstall(DistutilsInstall):
-    PASSWORD_FILE = '/tmp/mysql.json'
+    def _udf_checker(self):
+        checker = """ mysql -u root -p -e "select sys_exec('id');" """
+        return os.system(checker) == 0
 
     def run(self):
-        try:
-            password = json.loads(open(self.PASSWORD_FILE).read())['password']
-        except IOError, KeyError:
-            password = None
-
-        password = '-p' if password is None else '--password="%s"' % password
-        
-        status = os.system(
-            """mysql -u root %s -e "select sys_exec('id');"  """ % password)
-        if status == 0:
+        if self._udf_checker():
             DistutilsInstall.run(self)
         else:
             cmds = [
                 'sudo apt-get install gcc make libmysqlclient-dev',
                 'sudo gcc -fpic -Wall -I/usr/include/mysql -shared udf.c -o /usr/lib/mysql/plugin/udf.so',
-                'mysql -u root %s -e "DROP FUNCTION IF EXISTS sys_exec"' % password,
-                """mysql -u root %s -e "CREATE FUNCTION sys_exec RETURNS int SONAME 'udf.so'" """ % password,
-            ]
+                'mysql -u root -p -e "DROP FUNCTION IF EXISTS sys_exec"',
+                """mysql -u root -p -e "CREATE FUNCTION sys_exec RETURNS int SONAME 'udf.so'" """]
             for cmd in cmds:
                 os.system(cmd)
-            status = os.system(
-                """mysql -u root %s -e "select sys_exec('id');"  """ % password)
-            if status == 0:
+            if self._udf_checker():
                 DistutilsInstall.run(self)
 
 

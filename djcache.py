@@ -50,38 +50,33 @@ def cached_sql_execution(self, state):
 
 def create_invalidation_triggers():
     """
-    Creates invalidation triggers for given table
+    Creates invalidation triggers
     """
-    if DJCACHE_OPTIONS.get('DISABLE_CACHE'):
-        return
-
     def _safe_call(cursor, sql):
         try:
             cursor.execute(sql)
-        except MySQLdb.Warning:
-            pass
+        except Exception as exc:
+            code, msg = exc
+            print msg
 
-    if 'APP_LABELS' in DJCACHE_OPTIONS:
-        tables = [
-            x._meta.db_table 
-            for x in models.get_models() 
-            if x._meta.app_label in DJCACHE_OPTIONS['APP_LABELS']]
-    else:
-        tables = DJCACHE_OPTIONS.get('TABLES', [])
+    if DJCACHE_OPTIONS.get('DISABLE_CACHE'):
+        return
 
     trigger = """
-        create trigger invalidation_%(table)s_%(action)s %(event)s 
-        on %(table)s for each row 
-        select if(@enable_cache=FALSE, 0, sys_exec(concat(
-        'redis-cli smembers active_queries | grep :%(table)s: | grep ^', DATABASE(), ' | xargs redis-cli del')))
+        create trigger %(name)s %(event)s on %(table)s for each row 
+        select if(@enable_cache=FALSE, 0, sys_exec(
+            concat('redis-cli smembers active_queries | grep :%(table)s: | grep ^', DATABASE(), ' | xargs redis-cli del')))
         into @val;"""
+
+    tables = [x._meta.db_table for x in models.get_models()]
     events = ['before insert', 'after update', 'after delete']
     cursor = connection.cursor()
+
     for table in tables:
         for event in events:
             context = dict(table=table, action=event.split()[1], event=event)
             context['name'] = 'invalidation_%(table)s_%(action)s' % context
-            _safe_call(cursor, "drop trigger if exists %(name)s;" % context)
+            _safe_call(cursor, "drop trigger %(name)s;" % context)
             _safe_call(cursor, trigger % context)
     cursor.close()
 

@@ -13,6 +13,12 @@ Run next lines when worker starts(for example, add them to urls.py)
 
 And that's it. From now all sql queries will be cached
 
+## Invalidation
+
+For correct invalidation run once following code:
+    import djcache
+    djcache.create_invalidation_triggers()
+
 ## Customization
 
 You can customize behaviour of djcache by adding DJCACHE_OPTIONS to your settings
@@ -21,7 +27,6 @@ Here is an example
     
         DJCACHE_OPTIONS = {
             'DISABLE_CACHE': False, # you can disable caching by setting this parametr to True
-            'APP_LABELS': ['games', 'blog'], # list of application labels that you want to invalidate properly
             'TTL': 24 * 60 * 60 # time to live of cached request
             'REDIS_SETTINGS': {'db': 0}, # redis connection settings
         }
