@@ -16,8 +16,9 @@ And that's it. From now all sql queries will be cached
 ## Invalidation
 
 For correct invalidation run once following code:
-    import djcache
-    djcache.create_invalidation_triggers()
+
+        import djcache
+        djcache.create_invalidation_triggers()
 
 ## Customization
 
