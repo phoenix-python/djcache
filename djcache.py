@@ -1,5 +1,5 @@
 """
-Djcache adds auto caching to your django application. 
+Djcache adds auto caching to your django application.
 It's implicit(so You don't need to rewrite code to use it) and easy to install.
 Currently supports only mysql as database and redis as cache engine
 """
@@ -8,7 +8,6 @@ import pickle
 import hashlib
 
 import redis
-import MySQLdb
 from django.conf import settings
 from django.db import connection, models
 from django.db.models.sql.compiler import SQLCompiler
@@ -39,7 +38,7 @@ def cached_sql_execution(self, state):
     except EmptyResultSet:
         call_native = True
 
-    if call_native: 
+    if call_native:
         return NATIVE_SQL(self, state)
 
     db_name = settings.DATABASES[self.using]['NAME']
@@ -84,7 +83,7 @@ def create_invalidation_triggers():
             print msg
 
     trigger = """
-        create trigger %(name)s %(event)s on %(table)s for each row 
+        create trigger %(name)s %(event)s on %(table)s for each row
         select if(@enable_cache=FALSE, 0, sys_exec(
             concat('redis-cli smembers active_queries | grep :%(table)s: | grep ^', DATABASE(), ' | xargs redis-cli del')))
         into @val;"""
@@ -109,7 +108,8 @@ def patch():
     if DJCACHE_OPTIONS.get('DISABLE_CACHE'):
         return
     SQLCompiler.execute_sql = cached_sql_execution
-        
+
     if DJCACHE_OPTIONS.get("INVALIDATION", 0) == SIGNAL_INVALIDATION:
         for model in models.get_models():
-            post_save.connect(invalidation_signal, sender=model)                
+            post_save.connect(invalidation_signal, sender=model)
+            post_delete.connect(invalidation_signal, sender=model)
