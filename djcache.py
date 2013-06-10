@@ -1,3 +1,8 @@
+"""
+Djcache adds auto caching to your django application. 
+It's implicit(so You don't need to rewrite code to use it) and easy to install.
+Currently supports only mysql as database and redis as cache engine
+"""
 import json
 import pickle
 import hashlib
@@ -7,6 +12,14 @@ import MySQLdb
 from django.conf import settings
 from django.db import connection, models
 from django.db.models.sql.compiler import SQLCompiler
+from django.db.models.signals import post_save, post_delete
+from django.db.models.sql.datastructures import EmptyResultSet
+
+
+__version__ = '0.0.1'
+UDF_INVALIDATION = 0
+SIGNAL_INVALIDATION = 1
+ACTIVE_QUERIES = 'active_queries'
 
 
 DJCACHE_OPTIONS = getattr(settings, 'DJCACHE_OPTIONS', {})
@@ -19,15 +32,19 @@ def cached_sql_execution(self, state):
     Replacement of django internal execute_sql function
     Caching engine for select db requests
     """
-    sql = self.as_sql()
-    sql = sql[0] % sql[1]
+    try:
+        sql = self.as_sql()
+        sql = sql[0] % sql[1]
+        call_native = not sql.startswith('SELECT')
+    except EmptyResultSet:
+        call_native = True
 
-    if not sql.startswith('SELECT'):
+    if call_native: 
         return NATIVE_SQL(self, state)
 
     db_name = settings.DATABASES[self.using]['NAME']
     table_key = '%s.%s' % (
-        db_name, ''.join(map(lambda x: ':%s:' % x, sorted(self.query.tables))))
+        db_name, ''.join(map(':{0}:'.format, sorted(self.query.tables))))
 
     query = dict(db=db_name, sql=sql)
     key = hashlib.md5(json.dumps(query)).hexdigest()
@@ -43,14 +60,21 @@ def cached_sql_execution(self, state):
     data = list(data)
     ttl = DJCACHE_OPTIONS.get('TTL', 24 * 60 * 60)
     REDIS_CLIENT.setex(key, pickle.dumps(data), ttl)
-    REDIS_CLIENT.sadd('active_queries', table_key)
+    REDIS_CLIENT.sadd(ACTIVE_QUERIES, table_key)
     REDIS_CLIENT.sadd(table_key, key)
     return iter(data)
 
 
+def invalidation_signal(sender, **kwargs):
+    for collection in REDIS_CLIENT.smembers(ACTIVE_QUERIES):
+        if ":{0}:".format(sender._meta.db_table) in collection:
+            REDIS_CLIENT.delete(collection)
+
+
 def create_invalidation_triggers():
     """
-    Creates invalidation triggers
+    Creates invalidation triggers in database
+    Currently works only with MySQL
     """
     def _safe_call(cursor, sql):
         try:
@@ -58,9 +82,6 @@ def create_invalidation_triggers():
         except Exception as exc:
             code, msg = exc
             print msg
-
-    if DJCACHE_OPTIONS.get('DISABLE_CACHE'):
-        return
 
     trigger = """
         create trigger %(name)s %(event)s on %(table)s for each row 
@@ -85,5 +106,10 @@ def patch():
     """
     Adds caching to django's sql compiler and creates invalidation triggers
     """
-    if not DJCACHE_OPTIONS.get('DISABLE_CACHE'):
-        SQLCompiler.execute_sql = cached_sql_execution
+    if DJCACHE_OPTIONS.get('DISABLE_CACHE'):
+        return
+    SQLCompiler.execute_sql = cached_sql_execution
+        
+    if DJCACHE_OPTIONS.get("INVALIDATION", 0) == SIGNAL_INVALIDATION:
+        for model in models.get_models():
+            post_save.connect(invalidation_signal, sender=model)                

@@ -15,10 +15,16 @@ And that's it. From now all sql queries will be cached
 
 ## Invalidation
 
+Djcache uses two strategies for correct invalidation of sql queries
+First one doesn't depend on django(default behaviour). 
+It's based on triggers and currently works only with MySQL 
 For correct invalidation run once following code:
 
         import djcache
         djcache.create_invalidation_triggers()
+
+Second one uses django signals for correct invalidation.
+It can work with any relational database but can not invalidate data if it has changed outside of django
 
 ## Customization
 
@@ -29,5 +35,6 @@ Here is an example
         DJCACHE_OPTIONS = {
             'DISABLE_CACHE': False, # you can disable caching by setting this parametr to True
             'TTL': 24 * 60 * 60 # time to live of cached request
-            'REDIS_SETTINGS': {'db': 0}, # redis connection settings
+            'REDIS_SETTINGS': {'db': 0}, # redis connection settings,
+            'INVALIDATION': 0, # 0 for trigger invalidation, 1 for signal invalidation
         }
