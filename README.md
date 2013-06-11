@@ -17,17 +17,22 @@ And that's it. From now all sql queries will be cached
 
 Djcache uses two strategies for correct invalidation of sql queries
 
-First one uses django signals for correct invalidation.
+First one uses django signals for correct invalidation
+
 It can work with any relational database but can not invalidate data if it has changed outside of django
 
-Second uses triggers and special udf function.
+Second uses triggers and special udf function
+
 It's invalidation doesn't depend on django but currently works only with MySQL
+
 For installation of custom udf function run make
+
 To check that everything is fine go to mysql shell and run next line
 
         select sys_exec('id');
 
 If result code is 0 then installation succeeded
+
 For trigger creation run:
 
         import djcache
