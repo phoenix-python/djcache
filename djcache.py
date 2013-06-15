@@ -4,8 +4,9 @@ It's implicit(so You don't need to rewrite code to use it) and easy to install.
 Currently supports only mysql as database and redis as cache engine
 """
 import json
-import pickle
+import msgpack
 import hashlib
+import datetime
 
 import redis
 from django.conf import settings
@@ -24,6 +25,18 @@ ACTIVE_QUERIES = 'active_queries'
 DJCACHE_OPTIONS = getattr(settings, 'DJCACHE_OPTIONS', {})
 REDIS_CLIENT = redis.Redis(**DJCACHE_OPTIONS.get('REDIS_SETTINGS', {}))
 NATIVE_SQL = SQLCompiler.execute_sql
+
+
+def __decode_datetime(obj):
+    return (
+        datetime.datetime.strptime(obj["as_str"], "%Y%m%dT%H:%M:%S.%f")
+        if b'__datetime__' in obj else obj) 
+
+
+def __encode_datetime(obj):
+    return (
+        {'__datetime__': True, 'as_str': obj.strftime("%Y%m%dT%H:%M:%S.%f")}
+        if isinstance(obj, datetime.datetime) else obj)
 
 
 def cached_sql_execution(self, state):
@@ -51,14 +64,15 @@ def cached_sql_execution(self, state):
     if REDIS_CLIENT.sismember(table_key, key):
         data = REDIS_CLIENT.get(key)
         if data:
-            return iter(pickle.loads(data))
+            return iter(msgpack.loads(
+                data, use_list=False, object_hook=__decode_datetime))
 
     data = NATIVE_SQL(self, state)
     if data is None:
         return None
     data = list(data)
     ttl = DJCACHE_OPTIONS.get('TTL', 24 * 60 * 60)
-    REDIS_CLIENT.setex(key, pickle.dumps(data), ttl)
+    REDIS_CLIENT.setex(key, msgpack.dumps(data, default=__encode_datetime), ttl)
     REDIS_CLIENT.sadd(ACTIVE_QUERIES, table_key)
     REDIS_CLIENT.sadd(table_key, key)
     return iter(data)
