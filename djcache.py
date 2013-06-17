@@ -65,14 +65,14 @@ def cached_sql_execution(self, state):
         data = REDIS_CLIENT.get(key)
         if data:
             return iter(msgpack.loads(
-                data, use_list=False, object_hook=__decode_datetime))
+                data, use_list=False, object_hook=__decode_datetime, encoding='utf-8'))
 
     data = NATIVE_SQL(self, state)
     if data is None:
         return None
     data = list(data)
     ttl = DJCACHE_OPTIONS.get('TTL', 24 * 60 * 60)
-    REDIS_CLIENT.setex(key, msgpack.dumps(data, default=__encode_datetime), ttl)
+    REDIS_CLIENT.setex(key, msgpack.dumps(data, default=__encode_datetime, encoding='utf-8'), ttl)
     REDIS_CLIENT.sadd(ACTIVE_QUERIES, table_key)
     REDIS_CLIENT.sadd(table_key, key)
     return iter(data)
