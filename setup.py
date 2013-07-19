@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 
 setup(
@@ -6,5 +6,5 @@ setup(
     version='0.1',
     description="Auto caching for django's sql queries with redis",
     py_modules=['djcache'],
-    requires=['django', 'redis'],
+    install_requires=["Django>=1.3", "msgpack-python>=0.3.0", "redis>=2.7.5"],
     author='Alexander Orlov')
