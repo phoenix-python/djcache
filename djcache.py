@@ -47,7 +47,9 @@ def cached_sql_execution(self, state):
     try:
         sql = self.as_sql()
         sql = sql[0] % sql[1]
-        call_native = not sql.startswith('SELECT')
+        call_native = (
+            not sql.startswith('SELECT') or 
+            self.using in DJCACHE_OPTIONS.get('FORBIDDEN_USING', []))
     except EmptyResultSet:
         call_native = True
 
